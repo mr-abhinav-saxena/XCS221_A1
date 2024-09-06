@@ -18,8 +18,7 @@ Remember to write your final written solution.
 value of $n$ produces the smallest validation error, why this is
 likely the value that produces the smallest error.
 
-    \item a one-sentence review and explanation for when character $n$-grams
-            probably outperform word features.
+    \item a one-sentence movie review when character $n$-grams probably outperform word features together with an explanation why is it outperforming.
 \end{itemize}
 
 🐍

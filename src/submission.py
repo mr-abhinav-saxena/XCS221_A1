@@ -26,6 +26,10 @@ def extractWordFeatures(x: str) -> FeatureVector:
     """
     pass
     # ### START CODE HERE ###
+    word_counts = DefaultDict(int)
+    for word in x.split(' '):
+        word_counts[word] += 1
+    return word_counts
     # ### END CODE HERE ###
 
 
@@ -58,6 +62,17 @@ def learnPredictor(
     """
     weights = {}  # feature => weight
     # ### START CODE HERE ###
+    for epoch in range(numEpochs):
+        for x, y in trainExamples:
+            phi_x = featureExtractor(x)
+            score = dotProduct(weights, phi_x)
+            margin = y * score
+            predicted_y = 1 if score >= 0 else -1
+            if margin < 1: # hinge loss is non-zero
+                increment(weights, eta * y, phi_x) # weight <- weight - eta * (-1 * y * phi(x))
+        train_error = evaluatePredictor(trainExamples, lambda x: 1 if dotProduct(weights, featureExtractor(x)) >= 0 else -1)
+        validation_error = evaluatePredictor(validationExamples, lambda x: 1 if dotProduct(weights, featureExtractor(x)) >= 0 else -1)
+        print(f"Epoch {epoch + 1}: Train Error = {train_error}, Validation Error = {validation_error}")
     # ### END CODE HERE ###
     return weights
 
@@ -84,6 +99,12 @@ def generateDataset(numExamples: int, weights: WeightVector) -> List[Example]:
         phi = None
         y = None
         # ### START CODE HERE ###
+        phi = {}
+        for feature in weights.keys():
+            if random.random() < 0.5: # 5% chance to include each feature
+                phi[feature] = random.randint(1, 5)  # Random integer weight between 1 and 5
+        score = dotProduct(weights, phi)
+        y = 1 if score >= 0 else -1
         # ### END CODE HERE ###
         return (phi, y)
 
@@ -105,6 +126,12 @@ def extractCharacterFeatures(n: int) -> Callable[[str], FeatureVector]:
     def extract(x):
         pass
         # ### START CODE HERE ###
+        ngram_counts = DefaultDict(int)
+        x_no_spaces = x.replace(" ", "")
+        for i in range(len(x_no_spaces) - n + 1):
+            ngram = x_no_spaces[i:i+n]
+            ngram_counts[ngram] += 1
+        return ngram_counts
         # ### END CODE HERE ###
 
     return extract
@@ -170,4 +197,45 @@ def kmeans(
             final reconstruction loss)
     """
     # ### START CODE HERE ###
+    centroids = random.sample(examples, K)
+    examples_squared = [dotProduct(x, x) for x in examples]
+    prev_assignments = [0]*len(examples)
+    for epoch in range(maxEpochs):
+
+        # Assignment step
+        assignments_list = []
+        assignment_dict = DefaultDict(list)
+        centroids_squared = [dotProduct(c, c) for c in centroids]
+        for i, example in enumerate(examples):
+            min_distance = float('inf')
+            for k in range(K):
+                distance = examples_squared[i] + centroids_squared[k] - 2 * dotProduct(example, centroids[k])
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_cluster_index = k
+            assignments_list.append(closest_cluster_index)
+            assignment_dict[closest_cluster_index].append(example)
+        
+        # Update centroids step
+        for cluster_index, cluster_points in assignment_dict.items():
+            if cluster_points:
+                new_centroid = DefaultDict(float)
+                for point in cluster_points:
+                    increment(new_centroid, 1.0 / len(cluster_points), point)
+                centroids[cluster_index] = new_centroid
+        
+        # Calculate reconstruction loss
+        loss = 0.0
+        for x_in, x in enumerate(examples):
+            assigned_centroid = assignments_list[x_in]
+            loss += examples_squared[x_in] + centroids_squared[assigned_centroid] - 2 * dotProduct(x, centroids[assigned_centroid])
+
+        print(f"Epoch {epoch + 1}: Loss = {loss}")
+
+        #Check for convergence (if assignments do not change)
+        if assignments_list == prev_assignments:
+            break
+        prev_assignments = assignments_list.copy()
+        
+    return centroids, assignments_list, loss
     # ### END CODE HERE ###
